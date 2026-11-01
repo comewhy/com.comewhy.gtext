@@ -6,7 +6,7 @@
 
 基于 libxposed API 102 · Kotlin + Material Design 3
 
-[酷安：@闪退哥](https://www.coolapk.com/u/5628726) · [Telegram：@comewhyBot](https://t.me/comewhyBot)
+[酷安：@闪退哥](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram：@comewhyBot](https://t.me/comewhyBot)
 
 </div>
 
@@ -315,7 +315,7 @@ GText 在应用与 Hook 端之间同步规则有多条通道，Hook 端启动时
 
 <div align="center">
 
-**作者：[闪退哥（酷安）](https://www.coolapk.com/u/5628726) · [Telegram](https://t.me/comewhyBot)**
+**作者：[闪退哥（酷安）](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram](https://t.me/comewhyBot)**
 
 **如果这个项目对你有帮助，请给一个 ⭐ Star 支持一下！**
 
