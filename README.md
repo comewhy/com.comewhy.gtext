@@ -6,7 +6,7 @@
 
 基于 libxposed API 102 · Kotlin + Material Design 3
 
-[酷安：@闪退哥](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram：@comewhyBot](https://t.me/comewhyBot)
+[酷安：@闪退哥](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram 群：@comewhyBot](https://t.me/comewhyBot) · [Telegram 频道](https://t.me/come_why)
 
 </div>
 
@@ -56,6 +56,7 @@ GText 是一款基于 LSPosed 框架的 Android 文字替换模块：把其他�
 | 🔢 **捕获组** | 正则替换支持 `$1`~`$9` 引用分组 |
 | 💾 **备份恢复** | 全部规则与设置一键备份还原 |
 | 🔁 **重启应用** | Root 下重启桌面/系统界面等系统应用，无需重启手机 |
+| 🙈 **隐藏桌面图标** | 隐藏后替换功能照常运行；可从 LSPosed 管理器长按模块 →「模块设置」重新打开并恢复 |
 | 🚫 **生效范围可控** | 单条规则开关、单应用总开关，全局规则只对已添加应用生效 |
 
 ### 应用场景
@@ -202,10 +203,9 @@ GText 是一款基于 LSPosed 框架的 Android 文字替换模块：把其他�
 
 | 分区 | 内容 |
 |------|------|
-| 生效设置 | 暂停全部替换、启动激活提示、深度模式（原「替换管理」分区已移除，全局规则移到首页） |
 | 生效设置 | **暂停全部替换**（与下拉磁贴双向同步）、**启动时显示激活提示**、**深度模式** |
 | 数据管理 | **备份配置**、**恢复配置** |
-| 其他 | **检查更新**（读取 GitHub 最新版本，含更新日志与下载入口）、**关于 GText**（版本号、作者链接） |
+| 其他 | **检查更新**（读取 GitHub 最新版本，含更新日志与下载入口）、**隐藏桌面图标**、**关于 GText**（版本、简介与联系方式直接显示在标题下方，Telegram 链接可点击） |
 
 > 首页顶部只有一行信息：左侧统计（应用 / 规则 / 全局），右侧三个状态圆点（**通道** / **取词** / **Root**），绿色正常、红色异常，**点击圆点可查看该项说明**。搜索框默认收起，点工具栏放大镜展开。
 
@@ -315,7 +315,7 @@ GText 在应用与 Hook 端之间同步规则有多条通道，Hook 端启动时
 
 <div align="center">
 
-**作者：[闪退哥（酷安）](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram](https://t.me/comewhyBot)**
+**作者：[闪退哥（酷安）](https://www.coolapk.com/u/5628726) · [GitHub](https://github.com/comewhy/com.comewhy.gtext) · [Telegram 群](https://t.me/comewhyBot) · [Telegram 频道](https://t.me/come_why)**
 
 **如果这个项目对你有帮助，请给一个 ⭐ Star 支持一下！**
 
