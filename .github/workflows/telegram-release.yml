@@ -1,0 +1,290 @@
+
+name: GText Telegram Release Notification
+
+on:
+  release:
+    types: [published]
+
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "要推送的 Release Tag，例如 1-1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  telegram:
+    name: Send GText Release and APK to Telegram
+
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.release.prerelease == false
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get release information
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+
+          echo "Release tag: $TAG"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" > release.json
+
+          if [ "$(jq -r '.draft' release.json)" = "true" ]; then
+            echo "ERROR: Release is still a draft."
+            exit 1
+          fi
+
+          if [ "$(jq -r '.prerelease' release.json)" = "true" ]; then
+            echo "ERROR: Pre-release will not be sent."
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          jq -r '.body // "暂无更新说明"' release.json > release_body.txt
+
+      - name: Download APK assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$GITHUB_WORKSPACE/assets"
+
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.apk' \
+            --pattern '*.APK' \
+            --dir "$GITHUB_WORKSPACE/assets"
+
+          echo "Downloaded APK files:"
+
+          find "$GITHUB_WORKSPACE/assets" \
+            -maxdepth 1 -type f -iname '*.apk' -exec ls -lh {} \;
+
+          COUNT=$(find "$GITHUB_WORKSPACE/assets" \
+            -maxdepth 1 -type f -iname '*.apk' | wc -l)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "ERROR: No APK files found."
+            exit 1
+          fi
+
+      - name: Send APK with release notes
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          APK_DIRECTORY: ${{ github.workspace }}/assets
+          RELEASE_BODY_FILE: ${{ github.workspace }}/release_body.txt
+        run: |
+          set -euo pipefail
+
+          python3 <<'PY'
+          import os
+          import sys
+          import json
+          import uuid
+          import urllib.request
+          import urllib.error
+          from pathlib import Path
+
+          bot_token = os.environ["BOT_TOKEN"]
+          chat_id = os.environ["CHAT_ID"]
+          apk_directory = Path(os.environ["APK_DIRECTORY"])
+          release_body_file = Path(os.environ["RELEASE_BODY_FILE"])
+
+          MAX_SIZE = 50 * 1024 * 1024
+          MAX_CAPTION_LENGTH = 1000
+
+          release_body = release_body_file.read_text(
+              encoding="utf-8"
+          ).strip()
+
+          if not release_body:
+              release_body = "暂无更新说明"
+
+          caption = (
+              "🎉 GText 发布新版本！\n\n"
+              "📝 更新内容：\n"
+              + release_body
+          )
+
+          if len(caption) > MAX_CAPTION_LENGTH:
+              caption = caption[:MAX_CAPTION_LENGTH - 3] + "..."
+
+          print("Telegram message caption:")
+          print(caption)
+
+          apk_files = sorted(
+              p for p in apk_directory.iterdir()
+              if p.is_file() and p.suffix.lower() == ".apk"
+          )
+
+          if not apk_files:
+              print("ERROR: No APK files found.")
+              sys.exit(1)
+
+          print(f"Found {len(apk_files)} APK file(s).")
+
+          for index, apk_path in enumerate(apk_files):
+              print("=" * 50)
+              print(f"Preparing APK: {apk_path.name}")
+
+              file_size = apk_path.stat().st_size
+              print(f"Original file size: {file_size} bytes")
+
+              if file_size <= 0:
+                  raise RuntimeError("APK file is empty.")
+
+              if file_size > MAX_SIZE:
+                  raise RuntimeError(
+                      f"APK exceeds 50MB: {apk_path.name}"
+                  )
+
+              with apk_path.open("rb") as f:
+                  file_data = f.read()
+
+              actual_size = len(file_data)
+              print(f"Python read size: {actual_size} bytes")
+
+              if actual_size != file_size:
+                  raise RuntimeError(
+                      "File size mismatch. APK read was incomplete."
+                  )
+
+              print("APK read successfully.")
+
+              boundary = "----TelegramBoundary" + uuid.uuid4().hex
+              body_parts = []
+
+              def add_field(name, value):
+                  body_parts.append(
+                      (
+                          f"--{boundary}\r\n"
+                          f'Content-Disposition: form-data; name="{name}"\r\n'
+                          f"\r\n"
+                          f"{value}\r\n"
+                      ).encode("utf-8")
+                  )
+
+              add_field("chat_id", chat_id)
+
+              # 只在第一个 APK 上附加更新日志
+              if index == 0:
+                  add_field("caption", caption)
+
+              safe_filename = apk_path.name.replace('"', '_')
+
+              file_header = (
+                  f"--{boundary}\r\n"
+                  f'Content-Disposition: form-data; name="document"; '
+                  f'filename="{safe_filename}"\r\n'
+                  f"Content-Type: application/vnd.android.package-archive\r\n"
+                  f"\r\n"
+              ).encode("utf-8")
+
+              body_parts.append(file_header)
+              body_parts.append(file_data)
+              body_parts.append(b"\r\n")
+              body_parts.append(
+                  f"--{boundary}--\r\n".encode("utf-8")
+              )
+
+              request_body = b"".join(body_parts)
+
+              url = (
+                  f"https://api.telegram.org/bot{bot_token}/sendDocument"
+              )
+
+              request = urllib.request.Request(
+                  url,
+                  data=request_body,
+                  headers={
+                      "Content-Type": (
+                          f"multipart/form-data; boundary={boundary}"
+                      ),
+                      "Content-Length": str(len(request_body)),
+                  },
+                  method="POST"
+              )
+
+              print(f"Uploading: {apk_path.name}")
+
+              try:
+                  with urllib.request.urlopen(
+                      request, timeout=180
+                  ) as response:
+                      response_text = response.read().decode("utf-8")
+                      http_status = response.status
+
+              except urllib.error.HTTPError as error:
+                  response_text = error.read().decode(
+                      "utf-8", errors="replace"
+                  )
+                  http_status = error.code
+
+              except urllib.error.URLError as error:
+                  print(f"Network error: {error.reason}")
+                  raise
+
+              print(f"HTTP status: {http_status}")
+
+              try:
+                  result = json.loads(response_text)
+
+              except json.JSONDecodeError:
+                  print("ERROR: Invalid Telegram response.")
+                  print(response_text[:2000])
+                  sys.exit(1)
+
+              print(json.dumps(
+                  result,
+                  ensure_ascii=False,
+                  indent=2
+              ))
+
+              if http_status != 200 or result.get("ok") is not True:
+                  description = result.get(
+                      "description", "Unknown Telegram API error"
+                  )
+                  raise RuntimeError(
+                      f"Telegram upload failed: {description}"
+                  )
+
+              document = (
+                  result.get("result", {}).get("document", {})
+              )
+
+              print(
+                  "Telegram accepted APK: "
+                  + document.get("file_name", apk_path.name)
+              )
+
+              print(
+                  f"Uploaded size: "
+                  f"{document.get('file_size', 'unknown')}"
+              )
+
+              print(f"SUCCESS: {apk_path.name}")
+
+          print("=" * 50)
+          print("All APK files sent successfully.")
+          PY
