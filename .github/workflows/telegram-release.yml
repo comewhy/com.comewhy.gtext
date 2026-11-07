@@ -91,6 +91,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MESSAGE_THREAD_ID: "98"
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           APK_DIRECTORY: ${{ github.workspace }}/assets
           RELEASE_BODY_FILE: ${{ github.workspace }}/release_body.txt
@@ -108,6 +109,7 @@ jobs:
 
           bot_token = os.environ["BOT_TOKEN"]
           chat_id = os.environ["CHAT_ID"]
+          message_thread_id = os.environ["MESSAGE_THREAD_ID"]
           apk_directory = Path(os.environ["APK_DIRECTORY"])
           release_body_file = Path(os.environ["RELEASE_BODY_FILE"])
 
@@ -186,6 +188,7 @@ jobs:
                   )
 
               add_field("chat_id", chat_id)
+              add_field("message_thread_id", message_thread_id)
 
               # 只在第一个 APK 上附加更新日志
               if index == 0:
